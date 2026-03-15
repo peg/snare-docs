@@ -1,10 +1,10 @@
 ---
 title: stripe
-description: The stripe canary type.
+description: Stripe CLI config canary.
 ---
 
-<Note>Full documentation coming soon. See [canary overview](/canaries/overview) for a summary of all types.</Note>
+The `stripe` canary plants a fake Stripe CLI configuration with a verify URL.
 
-```bash
-snare plant --type stripe
-```
+## Reliability: Medium
+
+Fires when the Stripe CLI is invoked with the fake config or when an agent follows the verify URL. Less reliable than mechanism-based canaries — consider `awsproc` or `ssh` for primary coverage.

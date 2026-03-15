@@ -1,10 +1,22 @@
 ---
 title: npm
-description: The npm canary type.
+description: Scoped registry redirect — fires on npm install of packages in the fake scope.
 ---
 
-<Note>Full documentation coming soon. See [canary overview](/canaries/overview) for a summary of all types.</Note>
+The `npm` canary adds a scoped registry to `~/.npmrc` pointing at Snare. Any `npm install` of a package under the fake scope fires the callback.
 
-```bash
-snare plant --type npm
+## What gets planted
+
+```ini ~/.npmrc
+@agent-01-internal:registry=https://snare.sh/c/agent-01-ce023046.../
+//snare.sh/c/agent-01-ce023046.../:_authToken=npm_TKRBfVtq...
 ```
+
+## Trigger conditions
+
+- `npm install @agent-01-internal/<any-package>`
+- An agent trying to install internal packages from the fake registry
+
+## Reliability: Medium
+
+Only fires if something specifically tries to install packages in the fake scope. Unlike the pypi canary, this doesn't fire on every npm install — just scoped installs.

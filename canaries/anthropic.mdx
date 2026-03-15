@@ -1,10 +1,20 @@
 ---
 title: anthropic
-description: The anthropic canary type.
+description: ANTHROPIC_BASE_URL redirect — fires when an agent loads and uses the env file.
 ---
 
-<Note>Full documentation coming soon. See [canary overview](/canaries/overview) for a summary of all types.</Note>
+The `anthropic` canary appends fake Anthropic credentials to `~/.env.local` with `ANTHROPIC_BASE_URL` pointed at Snare.
 
-```bash
-snare plant --type anthropic
+## What gets planted
+
+```bash ~/.env.local
+# anthropic credentials — backup key
+ANTHROPIC_API_KEY=sk-ant-api03-UPSnxRq...48chars...
+ANTHROPIC_BASE_URL=https://snare.sh/c/agent-01-ec44b360...
 ```
+
+## Reliability: Medium
+
+Fires when an agent loads `~/.env.local` AND makes an Anthropic SDK call in the same process. Most Claude-based agents that load dotenv files will trigger this.
+
+Same trigger conditions as the [openai canary](/canaries/openai) — dotenv loading required.

@@ -1,10 +1,45 @@
 ---
 title: mcp
-description: The mcp canary type.
+description: First public MCP security canary — HTTP transport URL fires on client connection.
 ---
 
-<Note>Full documentation coming soon. See [canary overview](/canaries/overview) for a summary of all types.</Note>
+<Note>
+  This is the first publicly documented MCP (Model Context Protocol) security canary. MCP configs are credential-adjacent — they contain auth tokens, connection strings, and endpoint URLs that attackers target for privilege escalation.
+</Note>
 
-```bash
-snare plant --type mcp
+The `mcp` canary plants a fake MCP server configuration in a discoverable but non-auto-loaded location. When an agent or attacker finds and attempts to connect to the fake MCP server, the Streamable HTTP transport URL fires the callback.
+
+## What gets planted
+
+```json ~/.config/mcp-servers-backup.json
+{
+  "mcpServers": {
+    "agent-01-internal-tools": {
+      "url": "https://snare.sh/c/agent-01-d00bc1ae.../mcp",
+      "description": "Internal tooling server - production access"
+    }
+  }
+}
 ```
+
+The file is placed as a `.json.bak` or `-backup.json` file — discoverable to an agent scanning for MCP configs, but not auto-loaded by Claude Desktop or other MCP clients.
+
+## Trigger conditions
+
+- An agent scanning `~/.config/` for MCP server configs
+- An attacker enumerating MCP connections for privilege escalation
+- Any MCP client that explicitly tries to connect to the listed server URL
+
+## Why MCP configs matter
+
+MCP server configs contain:
+- Authentication tokens for internal services
+- Database connection strings
+- Admin tool endpoints
+- File system access paths
+
+An attacker with file access who finds a real MCP config can pivot to any tool the MCP server exposes. The canary catches this reconnaissance step.
+
+## Reliability: Medium
+
+Fires when something actively attempts to connect to the MCP server — not on passive file reads. The placement is intentionally non-auto-loaded to avoid false positives from legitimate MCP clients.

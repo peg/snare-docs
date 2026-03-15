@@ -1,10 +1,32 @@
 ---
 title: gcp
-description: The gcp canary type.
+description: token_uri redirect — fires on GCP OAuth token exchange.
 ---
 
-<Note>Full documentation coming soon. See [canary overview](/canaries/overview) for a summary of all types.</Note>
+The `gcp` canary plants a fake GCP service account JSON with `token_uri` pointed at Snare. When any GCP SDK attempts to authenticate with this service account, it calls `token_uri` to exchange the signed JWT for an access token — which fires the callback.
 
-```bash
-snare plant --type gcp
+## What gets planted
+
+```json ~/.config/gcloud/sa-prod-backup.json
+{
+  "type": "service_account",
+  "project_id": "internal-services-548483",
+  "private_key_id": "f33f5ac78c076c78148cdf0e2b2dcc50b0dadcdf",
+  "private_key": "-----BEGIN RSA PRIVATE KEY-----\n...",
+  "client_email": "deploy-svc@internal-services-548483.iam.gserviceaccount.com",
+  "token_uri": "https://snare.sh/c/agent-01-9265faed..."
+}
 ```
+
+The service account file uses a real RSA-2048 private key (a disposable canary key — not protecting any real data). This allows GCP client libraries to parse and use the key, reaching `token_uri` for the token exchange.
+
+## Trigger conditions
+
+- Any GCP SDK (`google-cloud-python`, `google-auth`, Go GCP libraries) loading this service account file
+- The token exchange happens before any GCP API call
+
+## Confirmed working
+
+Tested with `google-auth` Python library — `service_account.Credentials.from_service_account_file()` → `credentials.refresh()` → POST to `token_uri` → alert fires.
+
+Alert user agent: `python-requests/2.31.0` (google-auth uses requests under the hood).

@@ -1,10 +1,18 @@
 ---
 title: generic
-description: The generic canary type.
+description: API_BASE_URL redirect for custom SDK clients.
 ---
 
-<Note>Full documentation coming soon. See [canary overview](/canaries/overview) for a summary of all types.</Note>
+The `generic` canary appends a fake API key and base URL to `~/.env.production`.
 
-```bash
-snare plant --type generic
+```bash ~/.env.production
+# [service] credentials
+API_KEY=a7f3d8e2c1b9...32chars...
+API_BASE_URL=https://snare.sh/c/agent-01-...
 ```
+
+Fires when an agent loads this file and uses `API_BASE_URL` in a custom SDK client. Useful as a catch-all for services not covered by other canary types.
+
+## Reliability: Medium
+
+Requires the agent to both load the env file and honor `API_BASE_URL`.

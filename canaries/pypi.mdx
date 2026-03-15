@@ -1,10 +1,37 @@
 ---
 title: pypi
-description: The pypi canary type.
+description: extra-index-url — fires on every pip install.
 ---
 
-<Note>Full documentation coming soon. See [canary overview](/canaries/overview) for a summary of all types.</Note>
+The `pypi` canary adds Snare as an `extra-index-url` in pip's global config. Every `pip install` or `uv sync` queries Snare as an additional package index.
+
+## What gets planted
+
+```ini ~/.config/pip/pip.conf
+[global]
+extra-index-url = https://snare.sh/c/agent-01-ca955516.../simple/
+```
+
+## Trigger conditions
+
+- Any `pip install <package>` on this machine
+- Any `uv sync` or `uv pip install`
+- Python agents that install packages during execution
+
+## Side effects
+
+<Warning>
+  This canary fires on **every** pip install, not just malicious ones. Package names are visible in the request path. Use `snare teardown --type pypi` to remove it if pip installs become noisy.
+</Warning>
+
+The extra-index-url is queried in parallel with PyPI. Install performance is minimally affected (one additional HTTP request per install).
+
+## When to use
+
+Best for environments where you're monitoring agent behavior that includes package installation — a common pattern in agentic coding workflows.
 
 ```bash
 snare plant --type pypi
+# Remove later if too noisy:
+snare teardown --type pypi
 ```

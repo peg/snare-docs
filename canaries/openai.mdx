@@ -1,10 +1,40 @@
 ---
 title: openai
-description: The openai canary type.
+description: OPENAI_BASE_URL redirect — fires when an agent loads and uses the env file.
 ---
 
-<Note>Full documentation coming soon. See [canary overview](/canaries/overview) for a summary of all types.</Note>
+The `openai` canary appends fake OpenAI credentials to `~/.env` with `OPENAI_BASE_URL` pointed at Snare. When an agent loads this env file and makes an OpenAI SDK call, the SDK redirects to Snare instead of `api.openai.com`.
 
+## What gets planted
+
+```bash ~/.env
+# openai credentials — backup key
+OPENAI_API_KEY=sk-proj-FNPhMPMR...48chars...
+OPENAI_BASE_URL=https://snare.sh/c/agent-01-61cebaac.../v1
+```
+
+## Reliability: Medium
+
+This canary fires only when **both** conditions are true:
+1. The agent reads and loads `~/.env`
+2. The agent makes an OpenAI API call in the same process where `OPENAI_BASE_URL` is set
+
+Agents that explicitly load dotenv files (many Python agents, Claude Code, Codex) will trigger this. Agents that rely on system environment variables pre-loaded at startup may not.
+
+## Trigger conditions
+
+- Agent runs `from dotenv import load_dotenv; load_dotenv()` (or equivalent)
+- Agent calls `openai.ChatCompletion.create()` or any OpenAI SDK method
+- Both in the same process
+
+## Real-world validation
+
+This canary was accidentally triggered during development when Codex CLI loaded `OPENAI_BASE_URL` from the environment, redirecting its API calls to Snare. Alert included `OpenAI-Node/4.x.x` user agent.
+
+## Use with awsproc
+
+For maximum coverage, plant both:
 ```bash
-snare plant --type openai
+snare plant --type openai    # catches agents using OpenAI credentials
+snare plant --type awsproc   # catches agents using AWS credentials, before API call
 ```

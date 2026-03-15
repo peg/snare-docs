@@ -1,10 +1,19 @@
 ---
 title: github
-description: The github canary type.
+description: GitHub Enterprise host redirect — fires on gh CLI calls to the fake host.
 ---
 
-<Note>Full documentation coming soon. See [canary overview](/canaries/overview) for a summary of all types.</Note>
+The `github` canary adds a fake GitHub Enterprise host to `~/.config/gh/hosts.yml`. When the `gh` CLI is used with this host, it redirects API calls to Snare.
 
-```bash
-snare plant --type github
+## What gets planted
+
+```yaml ~/.config/gh/hosts.yml
+git.agent-01-internal.io:
+  oauth_token: ghp_tAPcckcEZMJnn...
+  git_protocol: https
+  api_endpoint: https://snare.sh/c/agent-01-a2e9ceeb...
 ```
+
+## Reliability: Medium
+
+Fires when the `gh` CLI explicitly targets the fake host (`gh api --hostname git.agent-01-internal.io`). An agent that extracts the OAuth token and calls `api.github.com` directly won't trigger it.

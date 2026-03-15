@@ -1,10 +1,43 @@
 ---
 title: aws
-description: The aws canary type.
+description: endpoint_url redirect — fires on any AWS SDK or CLI call.
 ---
 
-<Note>Full documentation coming soon. See [canary overview](/canaries/overview) for a summary of all types.</Note>
+The `aws` canary plants a fake AWS credentials profile with `endpoint_url` set to the callback URL. Any AWS SDK or CLI call using that profile redirects to Snare instead of `amazonaws.com`.
+
+## What gets planted
+
+```ini ~/.aws/credentials
+[prod-us-east-1-legacy-2024]
+aws_access_key_id     = AKIAW2U59XALOTHPSSEI
+aws_secret_access_key = tw7gxwYkonjmX8zDSge0vTKeXuEuG3Q...
+region                = us-east-1
+endpoint_url          = https://snare.sh/c/agent-01-9193baef...
+```
+
+The profile name looks like a real legacy or regional profile. The `endpoint_url` field is a standard AWS config option — any SDK that respects it (boto3, AWS CLI, Go SDK, Node.js SDK) will redirect all API calls to Snare.
+
+## Trigger conditions
+
+- Any `boto3` call using this profile
+- Any `aws` CLI command targeting this profile
+- Any AWS SDK that reads `~/.aws/credentials` and respects `endpoint_url`
+
+## Alert data
+
+The alert includes the exact Boto3/SDK user agent, which identifies the SDK version and runtime:
+
+```
+UA: Boto3/1.34.46 md/Botocore#1.34.46 ua/2.0 os/linux#6.8.0
+```
+
+Combined with the ASN (e.g., `Amazon Technologies Inc`), this immediately identifies a cloud-hosted agent.
+
+## vs. awsproc
+
+The `aws` canary fires on API calls. The `awsproc` canary fires at credential resolution — before any API call. For maximum early warning, plant both.
 
 ```bash
 snare plant --type aws
+snare plant --type awsproc
 ```

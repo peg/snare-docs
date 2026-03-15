@@ -1,10 +1,47 @@
 ---
 title: k8s
-description: The k8s canary type.
+description: kubeconfig server URL — fires on any kubectl or Kubernetes SDK call.
 ---
 
-<Note>Full documentation coming soon. See [canary overview](/canaries/overview) for a summary of all types.</Note>
+The `k8s` canary plants a fake kubeconfig file with the cluster `server` URL pointed at Snare. Any `kubectl` command or Kubernetes SDK call using this kubeconfig fires the callback.
 
-```bash
-snare plant --type k8s
+## What gets planted
+
+```yaml ~/.kube/staging-deploy.yaml
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    server: https://snare.sh/c/agent-01-eb479e05...
+    insecure-skip-tls-verify: true
+  name: staging-cluster
+contexts:
+- context:
+    cluster: staging-cluster
+    user: deploy-user
+  name: staging-context
+current-context: staging-context
+users:
+- name: deploy-user
+  user:
+    token: eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9...
 ```
+
+`insecure-skip-tls-verify: true` is common in real staging configs (and required here since Snare isn't a real Kubernetes API server). The kubeconfig lives in `~/.kube/` but with a non-default filename so it doesn't interfere with real kubeconfigs.
+
+## Trigger conditions
+
+- `kubectl --kubeconfig ~/.kube/staging-deploy.yaml get pods`
+- Any Kubernetes SDK that reads this kubeconfig
+- An agent scanning `~/.kube/` for available cluster configs
+
+## Confirmed working
+
+Tested with `kubectl v1.35.1` — alert fires with user agent:
+```
+kubectl/v1.35.1 (linux/amd64) kubernetes/...
+```
+
+## False positive risk
+
+Near zero — only fires if something explicitly uses this kubeconfig file or scans `~/.kube/` and attempts connections.
