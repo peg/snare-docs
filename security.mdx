@@ -1,0 +1,43 @@
+---
+title: Security
+description: Security model, privacy guarantees, and reporting vulnerabilities.
+---
+
+## Reporting vulnerabilities
+
+Email **security@snare.sh**. Do not open a public GitHub issue.
+
+We aim to acknowledge within 48 hours and provide a fix within 14 days for critical issues.
+
+## Privacy guarantee
+
+**Snare never reads request bodies on canary callbacks.**
+
+When a canary fires, the Worker returns a response before consuming the request body. This matters because canary callbacks may carry real credentials or sensitive data (e.g., an SDK trying to authenticate). The worker extracts only header-derived metadata:
+
+- Token ID, timestamp, IP, user agent, method, path, country, ASN
+
+This guarantee applies to the managed snare.sh Worker. Self-hosted deployments are controlled by the operator.
+
+## Device security
+
+Your device secret lives at `~/.snare/config.json` with `0600` permissions. The `~/.snare/` directory is `0700`.
+
+If your device secret is compromised: run `snare rotate` immediately. This generates a new 256-bit secret, updates snare.sh, and re-registers all active tokens. The old secret becomes invalid.
+
+## What snare.sh sees
+
+In managed mode (default), snare.sh receives:
+- Canary callback metadata: IP, user agent, timestamp, ASN, country
+- Token registrations: token ID, device ID, webhook URL, canary type
+- API authentication: device secret hashes (never the secret itself)
+
+snare.sh never receives: request bodies, credential content, your actual credentials, file contents.
+
+## Known limitations
+
+**Manifest is readable locally.** `~/.snare/manifest.json` contains token IDs and file paths. An attacker with local filesystem access could read it and identify canary files. Protect `~/.snare/` with file integrity monitoring.
+
+**Domain fingerprinting.** `snare.sh` becomes a known canary domain once the project is public. Sophisticated attackers could avoid triggering canaries by detecting the domain. Mitigation: [self-host with a custom domain](/self-hosting).
+
+**Medium reliability canaries are conditional.** Canaries that rely on env var loading (openai, anthropic) only fire if the agent reads the dotenv file AND uses the base URL override in the same process.

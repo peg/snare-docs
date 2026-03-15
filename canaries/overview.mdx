@@ -1,0 +1,44 @@
+---
+title: Canary types
+description: All 13 canary types, how they fire, and their reliability.
+---
+
+Snare ships 13 canary types. **High reliability** means the callback URL is the real service endpoint — the SDK calls it automatically. **Medium reliability** means the canary fires conditionally, depending on agent behavior.
+
+## High reliability (6)
+
+These fire whenever the credential is actively used.
+
+| Type | Location | Mechanism |
+|------|----------|-----------|
+| [awsproc](/canaries/awsproc) | `~/.aws/config` | `credential_process` fires at credential resolution — before any API call |
+| [aws](/canaries/aws) | `~/.aws/credentials` | `endpoint_url` redirects SDK calls to Snare |
+| [gcp](/canaries/gcp) | `~/.config/gcloud/sa-prod-backup.json` | `token_uri` redirects OAuth token exchange |
+| [ssh](/canaries/ssh) | `~/.ssh/config` | `ProxyCommand` runs curl callback on connection attempt |
+| [k8s](/canaries/k8s) | `~/.kube/<name>.yaml` | kubeconfig `server` URL redirects all kubectl/SDK traffic |
+| [pypi](/canaries/pypi) | `~/.config/pip/pip.conf` | `extra-index-url` queries Snare on every `pip install` |
+
+## Medium reliability (7)
+
+These fire when the agent reads the credential file AND honors the base URL override in the same process.
+
+| Type | Location | Mechanism |
+|------|----------|-----------|
+| [openai](/canaries/openai) | `~/.env` | `OPENAI_BASE_URL` redirects SDK calls |
+| [anthropic](/canaries/anthropic) | `~/.env.local` | `ANTHROPIC_BASE_URL` redirects SDK calls |
+| [npm](/canaries/npm) | `~/.npmrc` | Scoped registry URL fires on `npm install @scope/...` |
+| [mcp](/canaries/mcp) | `~/.config/mcp-servers*.json` | First public MCP security canary — HTTP transport URL fires on client connection |
+| [github](/canaries/github) | `~/.config/gh/hosts.yml` | `api_endpoint` redirects `gh` CLI calls to fake Enterprise host |
+| [stripe](/canaries/stripe) | `~/.config/stripe/config.toml` | Stripe CLI targets fake endpoint |
+| [generic](/canaries/generic) | `~/.env.production` | `API_BASE_URL` redirect for any SDK that honors env var |
+
+## Precision mode
+
+For environments where you want near-zero false positives, use `--precision` to plant only the three canaries that require active credential use (not just file reads):
+
+```bash
+snare arm --precision --webhook <url>
+# Plants: awsproc, ssh, k8s
+```
+
+[Learn about precision mode →](/precision-mode)

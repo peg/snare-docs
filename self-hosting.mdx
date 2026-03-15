@@ -1,0 +1,103 @@
+---
+title: Self-hosting
+description: Run your own Snare callback server instead of using snare.sh.
+---
+
+Snare works without any external dependency. The Cloudflare Worker source is in the repo (`worker/`) and a full Go callback server is built into the CLI (`snare serve`).
+
+## Why self-host?
+
+- **Air-gapped environments** — internal servers, no outbound traffic to snare.sh
+- **Custom callback domains** — `canary.yourcompany.internal` instead of `snare.sh`
+- **Data sovereignty** — events never leave your infrastructure
+- **On-premises compliance** — financial services, healthcare, defense
+
+## snare serve
+
+```bash
+snare serve --dashboard-token $(openssl rand -hex 32) --webhook-url <your-webhook>
+```
+
+<Warning>
+  `--dashboard-token` is required. The dashboard exposes all alert data — protect it with a strong token (min 16 chars). Generate one with `openssl rand -hex 32`.
+</Warning>
+
+### Access the dashboard
+
+```
+http://localhost:8080/?token=<your-token>
+```
+
+Or pass `Authorization: Bearer <token>` for API access.
+
+### With TLS (Let's Encrypt)
+
+```bash
+snare serve \
+  --dashboard-token $(openssl rand -hex 32) \
+  --tls-domain canary.yourcompany.com \
+  --webhook-url https://hooks.slack.com/...
+```
+
+Requires port 443 to be accessible for the ACME challenge.
+
+### Docker
+
+```bash
+docker run -d \
+  -p 8080:8080 \
+  -e SNARE_DASHBOARD_TOKEN=<your-token> \
+  -v snare-data:/data \
+  ghcr.io/peg/snare:latest \
+  serve --db /data/snare.db
+```
+
+## Point the CLI at your server
+
+Edit `~/.snare/config.json` after `snare init`:
+
+```json
+{
+  "callback_base": "https://canary.yourcompany.com/c"
+}
+```
+
+Or set during arm:
+
+```bash
+# Initialize with custom callback base
+snare init
+# Then edit ~/.snare/config.json before running arm
+```
+
+## Cloudflare Worker (managed backend alternative)
+
+The `worker/` directory contains the full Cloudflare Worker source. Deploy your own:
+
+```bash
+cd worker
+npx wrangler deploy
+```
+
+Set secrets:
+```bash
+npx wrangler secret put WEBHOOK_URLS         # comma-separated webhook URLs
+npx wrangler secret put WEBHOOK_SIGNING_SECRET  # for X-Snare-Signature verification
+```
+
+Then update `callback_base` in `~/.snare/config.json` to point at your worker URL.
+
+## Verifying webhook signatures
+
+When `WEBHOOK_SIGNING_SECRET` is configured, outbound webhooks include:
+
+```
+X-Snare-Signature: sha256=<hmac-sha256-hex>
+```
+
+Verify in your receiver:
+```python
+import hmac, hashlib
+expected = hmac.new(secret.encode(), payload, hashlib.sha256).hexdigest()
+assert f"sha256={expected}" == request.headers["X-Snare-Signature"]
+```

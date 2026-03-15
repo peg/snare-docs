@@ -1,0 +1,29 @@
+---
+title: Architecture
+description: How Snare works under the hood.
+---
+
+See the full [ARCHITECTURE.md](https://github.com/peg/snare/blob/main/ARCHITECTURE.md) in the GitHub repository for a complete technical reference.
+
+Key components:
+
+- **CLI** (`cmd/snare`, `internal/`) — single static Go binary, no runtime dependencies
+- **Cloudflare Worker** (`worker/`) — callback receiver, KV event storage, webhook delivery
+- **snare serve** (`internal/serve/`) — self-hosted alternative to the Worker
+
+## Plant flow
+
+1. Render bait content (dry-run, no disk write)
+2. Write manifest record with status="pending"  
+3. Write bait to disk (O_EXCL for new files, O_APPEND for existing)
+4. Register token with snare.sh
+5. Activate manifest record
+
+## Teardown flow
+
+1. Find canary in manifest
+2. Read current file from disk
+3. Verify content hash matches planted content
+4. Remove exact bytes Snare wrote (atomic rename for append-mode)
+5. Revoke token registration
+6. Mark canary inactive in manifest

@@ -1,0 +1,37 @@
+---
+title: Precision mode
+description: Three canaries, near-zero false positives.
+---
+
+`snare arm --precision` plants only the three canaries with essentially zero false positive risk.
+
+```bash
+snare arm --precision --webhook <url>
+```
+
+Plants: **awsproc**, **ssh**, **k8s** — and nothing else.
+
+## Why these three
+
+These canaries share a property: they require **active attempted use** of the credential, not just file reads or environment scanning.
+
+| Type | Fires when | False positive risk |
+|------|------------|---------------------|
+| `awsproc` | AWS SDK resolves credentials for the planted profile | Essentially zero |
+| `ssh` | Something attempts an SSH connection to the fake host | Near zero |
+| `k8s` | kubectl or a Kubernetes SDK contacts the fake cluster | Near zero |
+
+## When to use precision mode
+
+**Use `--precision` when:**
+- Your environment has legitimate agents that load `.env` files (which would trigger openai/anthropic canaries)
+- You run `pip install` or `npm install` regularly and don't want incidental pypi/npm fires
+- You want maximum signal-to-noise ratio and are comfortable with narrower coverage
+
+**Use the default `snare arm` when:**
+- You want broad coverage across all credential types agents might hunt for
+- You're in a security-focused environment where any canary fire is significant
+
+## The default set
+
+The default `snare arm` plants 10 canaries (all high + selected medium reliability types). The additional 4 beyond the precision set — aws, gcp, openai, anthropic, npm, mcp, pypi — are still valuable but have slightly different trigger conditions.

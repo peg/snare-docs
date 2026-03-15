@@ -1,0 +1,151 @@
+---
+title: CLI Reference
+description: All snare commands and flags.
+---
+
+## snare arm
+
+One-command setup: initialize + plant all canaries + test webhook.
+
+```bash
+snare arm --webhook <url>
+snare arm --webhook <url> --label prod-server
+snare arm --precision --webhook <url>
+snare arm --dry-run
+```
+
+| Flag | Description |
+|------|-------------|
+| `--webhook <url>` | Webhook URL (Discord, Slack, Telegram, PagerDuty, Teams) |
+| `--label <name>` | Prefix canary names (defaults to hostname) |
+| `--precision` | Plant only awsproc, ssh, k8s — near-zero false positives |
+| `--dry-run` | Show what would be planted without writing anything |
+
+## snare disarm
+
+Remove all canaries. Surgical — only removes bytes Snare wrote.
+
+```bash
+snare disarm
+snare disarm --purge          # also removes ~/.snare/ config
+snare disarm --dry-run        # preview what would be removed
+snare disarm --force          # skip hash verification
+```
+
+## snare status
+
+Show active canaries with last-seen timestamps.
+
+```bash
+snare status
+```
+
+## snare events
+
+Fetch recent alert events from snare.sh.
+
+```bash
+snare events
+```
+
+## snare test
+
+Fire a test alert to verify your webhook works end-to-end.
+
+```bash
+snare test
+```
+
+Registers a test token with snare.sh first, then fires the callback. Proves the full pipeline: registration → callback → webhook delivery.
+
+## snare doctor
+
+Validate your configuration and canary health.
+
+```bash
+snare doctor
+snare doctor --test    # also fires a live test alert
+```
+
+Checks:
+- Config file exists and is readable
+- Callback server (snare.sh) is reachable
+- Webhook is configured
+- Active canary count
+- Canary files present and unmodified
+
+## snare config
+
+Show or update configuration.
+
+```bash
+snare config                          # show current config
+snare config set webhook <url>        # update webhook URL
+```
+
+## snare rotate
+
+Rotate your device secret. Use if `~/.snare/config.json` was exposed.
+
+```bash
+snare rotate
+```
+
+Generates a new 256-bit secret, updates snare.sh, and re-registers all active tokens.
+
+## snare plant
+
+Plant individual canary types.
+
+```bash
+snare plant --type awsproc
+snare plant --type ssh --label jump-box
+snare plant --all                     # plant all high-reliability types
+```
+
+| Flag | Description |
+|------|-------------|
+| `--type <type>` | Canary type (aws, awsproc, gcp, ssh, k8s, pypi, openai, anthropic, npm, mcp, github, stripe, generic) |
+| `--label <name>` | Prefix canary names |
+| `--all` | Plant all recommended canary types |
+| `--dry-run` | Preview without writing |
+
+## snare teardown
+
+Remove specific canaries.
+
+```bash
+snare teardown --token <id>
+snare teardown --dry-run
+snare teardown --force       # skip hash verification
+```
+
+## snare serve
+
+Run a self-hosted callback server.
+
+```bash
+snare serve --dashboard-token $(openssl rand -hex 32)
+snare serve --port 9090 --dashboard-token <token>
+snare serve --tls-domain canary.yourcompany.com --dashboard-token <token>
+```
+
+| Flag | Description |
+|------|-------------|
+| `--dashboard-token <token>` | **Required.** Token to protect the dashboard (min 16 chars) |
+| `--port <n>` | Listen port (default: 8080) |
+| `--db <path>` | SQLite database path |
+| `--tls-domain <domain>` | Enable Let's Encrypt HTTPS |
+| `--webhook-url <url>` | Global fallback webhook URL |
+
+Also: `SNARE_DASHBOARD_TOKEN` env var accepted instead of `--dashboard-token`.
+
+## snare uninstall
+
+Complete removal: disarm + remove config + remove binary.
+
+```bash
+snare uninstall
+snare uninstall -y          # skip confirmation
+snare uninstall --force     # force-remove even if files changed since planting
+```

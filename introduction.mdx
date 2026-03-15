@@ -1,0 +1,54 @@
+---
+title: Introduction
+description: AI agent compromise detection via deception.
+---
+
+Snare plants fake credentials where agents actually look. When a compromised agent tries to use one, the credential fires an instant alert — **before the first API call**.
+
+## How it works
+
+<CardGroup cols={2}>
+  <Card title="Plant" icon="seedling">
+    `snare arm --webhook <url>` places convincing fake credentials across 13 locations agents scan. The callback URL is embedded as the real service endpoint — not a comment.
+  </Card>
+  <Card title="Wait" icon="clock">
+    Canaries sit silently. A healthy agent ignores them. A compromised agent will find them and try to use them.
+  </Card>
+  <Card title="Fire" icon="bolt">
+    The SDK calls the callback URL instead of the real service. Alert arrives in Discord/Slack/Telegram within a second — before the attacker can do anything else.
+  </Card>
+  <Card title="Respond" icon="shield">
+    IP, ASN, SDK user agent, and timestamp tell you exactly what tried to use the credential and where it was running.
+  </Card>
+</CardGroup>
+
+## The crown jewel: awsproc
+
+The `awsproc` canary uses AWS `credential_process` — it fires at credential **resolution** time, before any API call is made. CloudTrail-based detection can't see this step at all.
+
+```
+T+0.00s   Agent runs: aws s3 ls --profile prod-admin
+T+0.01s   AWS SDK begins credential resolution
+T+0.01s   credential_process executes → Snare fires → alert in your webhook
+T+0.02s   SDK receives fake credentials
+T+0.03s   SDK attempts API call → fails
+```
+
+[Learn more about awsproc →](/canaries/awsproc)
+
+## Quick navigation
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Up and running in 60 seconds
+  </Card>
+  <Card title="Canary types" icon="list" href="/canaries/overview">
+    All 13 canary types explained
+  </Card>
+  <Card title="Self-hosting" icon="server" href="/self-hosting">
+    Run your own callback server
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/cli-reference">
+    All commands and flags
+  </Card>
+</CardGroup>

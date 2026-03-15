@@ -1,0 +1,72 @@
+---
+title: awsproc
+description: Fires at AWS credential resolution — before any API call.
+---
+
+<Note>
+  This is the most technically sophisticated canary in Snare. It fires at credential **resolution** time — before the AWS SDK makes a single network request. CloudTrail never sees it.
+</Note>
+
+## How it works
+
+When an agent runs `aws s3 ls --profile prod-admin`, the AWS SDK must first resolve credentials for that profile. For profiles using `source_profile`, it follows the chain to the source and runs the `credential_process` command.
+
+That's where Snare fires.
+
+```
+T+0.00s   aws s3 ls --profile prod-admin
+T+0.01s   AWS SDK begins credential resolution
+T+0.01s   Follows source_profile → prod-admin-source
+T+0.01s   Executes credential_process shell command
+T+0.01s   curl fires → alert in your webhook
+T+0.02s   SDK receives fake JSON credentials
+T+0.03s   SDK attempts API call with fake creds → fails
+```
+
+**The alert arrives before the agent knows the credentials don't work.**
+
+## The two-profile pattern
+
+The canary uses an assume-role pattern that looks like a real staging/production setup:
+
+```ini ~/.aws/config
+# Visible profile — looks like a legitimate assume-role config
+[profile prod-admin]
+role_arn       = arn:aws:iam::389844960505:role/OrganizationAccountAccessRole
+source_profile = prod-admin-source
+region         = us-east-1
+
+# Hidden source — runs credential_process to fire the callback
+[profile prod-admin-source]
+credential_process = sh -c 'r=$(curl -sf "https://snare.sh/c/token" -o /dev/null -w "%{http_code}" 2>/dev/null); printf "{\"Version\":1,\"AccessKeyId\":\"AKIA...\",\"SecretAccessKey\":\"...\"}"'
+```
+
+An attacker scanning `~/.aws/config` sees a realistic assume-role profile. The `credential_process` source profile is named consistently and hidden below.
+
+## Why CloudTrail can't see this
+
+AWS CloudTrail logs API calls to AWS services. `credential_process` runs entirely locally — it's a shell command executed by the SDK before any network request. CloudTrail only sees the subsequent API call (which fails with invalid credentials).
+
+Snare fires at step T+0.01s. CloudTrail's first entry would be at T+0.03s, after the credentials have already been used.
+
+## Air-gapped / network-restricted environments
+
+If the callback URL is unreachable (firewall, air-gap), `curl` fails silently. The shell command still outputs the fake JSON credentials — the agent receives apparently-valid credentials and continues unaware.
+
+For fully air-gapped environments, use [self-hosted mode](/self-hosting) to point callbacks at an internal server.
+
+## Precision mode
+
+`awsproc` is one of three canaries included in `snare arm --precision`:
+
+```bash
+snare arm --precision --webhook <url>
+# Plants: awsproc, ssh, k8s
+# Near-zero false positives — fires only on active credential use
+```
+
+[Learn about precision mode →](/precision-mode)
+
+## False positive risk
+
+**Essentially zero.** `awsproc` only fires when something actively attempts to resolve credentials using that specific profile. A legitimate agent configured to use `prod-admin` wouldn't be in your environment unless you put it there.
