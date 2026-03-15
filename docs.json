@@ -1,0 +1,57 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Snare",
+  "logo": {
+    "dark": "/logo/snare-dark.svg",
+    "light": "/logo/snare-light.svg"
+  },
+  "favicon": "/favicon.svg",
+  "colors": {
+    "primary": "#f5a623",
+    "light": "#f9b840",
+    "dark": "#0a0a0b"
+  },
+  "topbarLinks": [
+    {
+      "name": "GitHub",
+      "url": "https://github.com/peg/snare"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get started",
+    "url": "https://snare.sh#quickstart"
+  },
+  "navigation": [
+    {
+      "group": "Getting started",
+      "pages": ["introduction", "quickstart", "precision-mode"]
+    },
+    {
+      "group": "Canary types",
+      "pages": [
+        "canaries/overview",
+        "canaries/awsproc",
+        "canaries/aws",
+        "canaries/gcp",
+        "canaries/ssh",
+        "canaries/k8s",
+        "canaries/pypi",
+        "canaries/openai",
+        "canaries/anthropic",
+        "canaries/npm",
+        "canaries/mcp",
+        "canaries/github",
+        "canaries/stripe",
+        "canaries/generic"
+      ]
+    },
+    {
+      "group": "Reference",
+      "pages": ["cli-reference", "self-hosting", "architecture", "security"]
+    }
+  ],
+  "footerSocials": {
+    "github": "https://github.com/peg/snare",
+    "website": "https://snare.sh"
+  }
+}
