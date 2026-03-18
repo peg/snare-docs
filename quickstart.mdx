@@ -9,6 +9,12 @@ description: Up and running in 60 seconds.
 curl -fsSL https://snare.sh/install | sh
 ```
 
+Or with Homebrew:
+
+```bash
+brew install peg/tap/snare
+```
+
 Or download a binary from [releases](https://github.com/peg/snare/releases).
 
 ## Arm
@@ -17,41 +23,51 @@ Or download a binary from [releases](https://github.com/peg/snare/releases).
 snare arm --webhook https://discord.com/api/webhooks/YOUR/WEBHOOK
 ```
 
-This does everything: initializes your device config, plants 10 canaries across your credential locations, fires a test alert to verify your webhook works.
+By default, `snare arm` uses precision mode — plants the three highest-signal canaries (awsproc, ssh, k8s), fires a test alert, and you're done.
 
 ```
-✓ already initialized (device: dev-2146102a)
+✓ initialized (device: dev-2146102a)
 
   Planting canaries...
-    ✓ aws          ~/.aws/credentials
+  Precision mode: planting highest-signal canaries only (awsproc, ssh, k8s)
     ✓ awsproc      ~/.aws/config
-    ✓ gcp          ~/.config/gcloud/sa-prod-backup.json
-    ✓ openai       ~/.env
-    ✓ anthropic    ~/.env.local
     ✓ ssh          ~/.ssh/config
     ✓ k8s          ~/.kube/staging-deploy.yaml
-    ✓ npm          ~/.npmrc
-    ✓ mcp          ~/.config/mcp-servers-backup.json
-    ✓ pypi         ~/.config/pip/pip.conf
 
   ✓ webhook test fired
 
-  🪤 10 canaries armed. This machine is protected.
+  🪤 3 canaries armed. This machine is protected.
+
+  Run `snare status` to check.
+  Run `snare disarm` to remove everything.
 ```
+
+## Want more coverage?
+
+Use `--select` to pick any combination interactively, or `--all` for all 18 types:
+
+```bash
+snare arm --select --webhook <url>   # interactive picker
+snare arm --all --webhook <url>      # all 18 types
+```
+
+Read [canary types](/canaries/overview) before enabling pypi or npm — they have side effects on your own installs.
 
 ## Verify
 
 ```bash
-snare status     # show active canaries
+snare status     # show active canaries with last-seen timestamps
 snare test       # fire another test alert
-snare doctor     # validate everything is healthy
+snare doctor     # validate config, connectivity, and canary integrity
+snare events     # fetch alert history
+snare events --summary   # ASN/UA distribution across all canaries
 ```
 
 ## Disarm
 
 ```bash
-snare disarm     # remove all canaries (keep config)
-snare disarm --purge  # remove everything including ~/.snare/
+snare disarm              # remove all canaries, keep config
+snare disarm --purge      # remove everything including ~/.snare/
 ```
 
 ## Supported webhook destinations
@@ -63,4 +79,4 @@ snare disarm --purge  # remove everything including ~/.snare/
 | Telegram | `https://api.telegram.org/bot.../sendMessage` |
 | PagerDuty | `https://events.pagerduty.com/v2/enqueue` |
 | MS Teams | `https://...webhook.office.com/...` |
-| Generic | Any `https://` URL |
+| Generic | Any `https://` URL — receives a JSON POST |

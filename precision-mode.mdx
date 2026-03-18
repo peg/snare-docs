@@ -1,37 +1,53 @@
 ---
 title: Precision mode
-description: Three canaries, near-zero false positives.
+description: Three canaries, near-zero false positives. The default.
 ---
 
-`snare arm --precision` plants only the three canaries with essentially zero false positive risk.
+`snare arm` defaults to precision mode — three canaries that fire via existing SDK and OS plumbing, with near-zero false positive risk.
 
 ```bash
-snare arm --precision --webhook <url>
+snare arm --webhook <url>
+# Plants: awsproc, ssh, k8s
 ```
 
-Plants: **awsproc**, **ssh**, **k8s** — and nothing else.
+Use `--select` to pick canaries interactively, or `--all` to plant all 18 types.
 
 ## Why these three
 
-These canaries share a property: they require **active attempted use** of the credential, not just file reads or environment scanning.
+These canaries share a property: they fire via SDK or OS hooks that already exist. No new processes. No DNS dependency. No side effects on your own tooling.
 
-| Type | Fires when | False positive risk |
-|------|------------|---------------------|
-| `awsproc` | AWS SDK resolves credentials for the planted profile | Essentially zero |
-| `ssh` | Something attempts an SSH connection to the fake host | Near zero |
-| `k8s` | kubectl or a Kubernetes SDK contacts the fake cluster | Near zero |
+| Type | Fires when | How |
+|------|------------|-----|
+| `awsproc` | AWS SDK resolves credentials for the planted profile | `credential_process` shell command runs inside the SDK credential chain |
+| `ssh` | Something attempts SSH to the fake host | `ProxyCommand` is the transport — runs before TCP connection |
+| `k8s` | kubectl or SDK contacts the fake cluster | kubeconfig `server` URL points to snare.sh — fires on any API call |
 
-## When to use precision mode
+**Near-zero** (not zero) because a randomly-generated profile name could theoretically collide with an existing one, or a tool that iterates all kubeconfigs could trigger k8s. In practice this doesn't happen.
 
-**Use `--precision` when:**
-- Your environment has legitimate agents that load `.env` files (which would trigger openai/anthropic canaries)
-- You run `pip install` or `npm install` regularly and don't want incidental pypi/npm fires
-- You want maximum signal-to-noise ratio and are comfortable with narrower coverage
+## When to use --select instead
 
-**Use the default `snare arm` when:**
-- You want broad coverage across all credential types agents might hunt for
-- You're in a security-focused environment where any canary fire is significant
+The interactive `--select` mode lets you pick individual canaries from all three tiers:
 
-## The default set
+```bash
+snare arm --select --webhook <url>
+```
 
-The default `snare arm` plants 10 canaries (all high + selected medium reliability types). The additional 4 beyond the precision set — aws, gcp, openai, anthropic, npm, mcp, pypi — are still valuable but have slightly different trigger conditions.
+Arrow keys to navigate, Space to toggle, Enter to confirm. Precision canaries are pre-checked. Use this when you want aws or gcp coverage in addition to the precision defaults.
+
+## When to use --all
+
+`--all` plants all 18 canary types, including dotenv-based ones (openai, anthropic, huggingface) and types with side effects (pypi, npm). Read the [canary types overview](/canaries/overview) before enabling these.
+
+```bash
+snare arm --all --webhook <url>
+```
+
+## Why not more precision canaries?
+
+Some canaries that look like precision candidates aren't:
+
+- **azure** — `service-principal-credentials.json` is not in the standard Azure SDK credential chain. Requires an agent to explicitly find and load the file.
+- **gcp** — `sa-*.json` is not in ADC auto-discovery. Requires `GOOGLE_APPLICATION_CREDENTIALS` or explicit file load.
+- **git** — `credential.helper` only fires after an HTTP 401 from the fake host. The fake hostname has no DNS record, so git fails at DNS before requesting credentials.
+
+These are high or medium reliability, not precision.

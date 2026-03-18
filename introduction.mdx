@@ -1,40 +1,52 @@
 ---
 title: Introduction
-description: AI agent compromise detection via deception.
+description: Credential canaries for AI agent environments.
 ---
 
-Snare plants fake credentials where agents actually look. When a compromised agent tries to use one, the credential fires an instant alert — **before the first API call**.
+Snare plants fake credentials in the exact locations agents look. When anything tries to use one, the credential calls home instead of the real service. You get notified. The API call fails.
 
 ## How it works
 
 <CardGroup cols={2}>
   <Card title="Plant" icon="seedling">
-    `snare arm --webhook <url>` places convincing fake credentials across 13 locations agents scan. The callback URL is embedded as the real service endpoint — not a comment.
+    `snare arm --webhook <url>` places fake credentials across 18 locations. The callback URL is embedded as the real service endpoint, not a comment.
   </Card>
   <Card title="Wait" icon="clock">
-    Canaries sit silently. A healthy agent ignores them. A compromised agent will find them and try to use them.
+    Canaries sit silently. Normal tooling ignores them. A compromised agent, leaked key, or attacker with shell access will find them and try to use them.
   </Card>
   <Card title="Fire" icon="bolt">
-    The SDK calls the callback URL instead of the real service. Alert arrives in Discord/Slack/Telegram within a second — before the attacker can do anything else.
+    The SDK calls the callback URL instead of the real service. Alert arrives in Discord, Slack, or Telegram in under a second.
   </Card>
-  <Card title="Respond" icon="shield">
+  <Card title="Know" icon="shield">
     IP, ASN, SDK user agent, and timestamp tell you exactly what tried to use the credential and where it was running.
   </Card>
 </CardGroup>
 
-## The crown jewel: awsproc
+## The key differentiator: awsproc
 
-The `awsproc` canary uses AWS `credential_process` — it fires at credential **resolution** time, before any API call is made. CloudTrail-based detection can't see this step at all.
+The `awsproc` canary uses AWS `credential_process` — a shell command that runs inside the SDK's own credential resolution path, before any API call is made. CloudTrail cannot see this step.
 
 ```
-T+0.00s   Agent runs: aws s3 ls --profile prod-admin
+T+0.00s   aws s3 ls --profile prod-admin
 T+0.01s   AWS SDK begins credential resolution
-T+0.01s   credential_process executes → Snare fires → alert in your webhook
+T+0.01s   credential_process runs → Snare fires → alert in your webhook
 T+0.02s   SDK receives fake credentials
 T+0.03s   SDK attempts API call → fails
 ```
 
+Canarytokens' AWS canary uses CloudTrail and takes 2–30 minutes to alert. awsproc fires at credential resolution time — before the network request exists.
+
 [Learn more about awsproc →](/canaries/awsproc)
+
+## Three tiers
+
+Snare canaries are rated by reliability and side-effect risk.
+
+| Tier | Types | What it means |
+|------|-------|---------------|
+| **Precision** | awsproc, ssh, k8s | Fire via SDK/OS hooks. Near-zero false positives, no side effects. Default. |
+| **High** | aws, gcp, npm, git, pypi | Fire when the credential is actively used. Some have side effects on your own tooling. |
+| **Medium** | azure, openai, anthropic, mcp, github, stripe, huggingface, docker, terraform, generic | Fire conditionally. Requires attacker to honor SDK base URL overrides. |
 
 ## Quick navigation
 
@@ -43,10 +55,10 @@ T+0.03s   SDK attempts API call → fails
     Up and running in 60 seconds
   </Card>
   <Card title="Canary types" icon="list" href="/canaries/overview">
-    All 13 canary types explained
+    All 18 canary types explained
   </Card>
   <Card title="Self-hosting" icon="server" href="/self-hosting">
-    Run your own callback server
+    Run your own callback server inside your network
   </Card>
   <Card title="CLI reference" icon="terminal" href="/cli-reference">
     All commands and flags

@@ -1,0 +1,52 @@
+---
+title: git
+description: git credential.helper canary — fires when an agent does credential scanning against the fake host.
+---
+
+**Tier:** High
+**Location:** `~/.gitconfig`
+**Mechanism:** `credential.helper` shell command
+
+## How it works
+
+Git's `credential.helper` config runs a shell command when git needs credentials for a specific host. Snare appends a scoped entry to `~/.gitconfig` that curls the snare.sh callback when git requests credentials for the fake host.
+
+```ini
+# ~/.gitconfig
+[credential "https://git.acme-internal.io"]
+    helper = !sh -c 'curl -sf https://snare.sh/c/TOKEN -o /dev/null 2>/dev/null; exit 1'
+```
+
+The `exit 1` causes git to fall through to the next helper — no credentials returned, git fails gracefully.
+
+## When it fires
+
+The helper runs when git is asked for credentials for that specific hostname. This happens when:
+
+- An agent runs `git credential fill` with that URL (active credential scanning behavior)
+- An agent tries to clone/pull from the fake host AND the host returns an HTTP 401 auth challenge
+
+## Limitation
+
+The fake hostname (`git.acme-internal.io`) has no DNS record, so git fails at DNS resolution before issuing an auth challenge in most clone/pull scenarios. The canary fires reliably when an agent explicitly scans gitconfig and runs `git credential fill` — which is standard credential-hunting behavior.
+
+This is why `git` is **high** reliability, not precision. It doesn't fire automatically via SDK plumbing the way awsproc does.
+
+## False positives
+
+Near-zero. The credential section is scoped to a randomly generated fake hostname that nothing in your environment would legitimately target.
+
+## Plant
+
+```bash
+snare plant --type git --webhook <url>
+snare arm --select --webhook <url>   # pick via interactive mode
+```
+
+## Teardown
+
+```bash
+snare teardown --token <id>
+```
+
+Removes only the appended credential block. Does not modify other `~/.gitconfig` content.

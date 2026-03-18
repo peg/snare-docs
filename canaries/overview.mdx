@@ -1,44 +1,69 @@
 ---
 title: Canary types
-description: All 13 canary types, how they fire, and their reliability.
+description: All 18 canary types, three tiers, and when each fires.
 ---
 
-Snare ships 13 canary types. **High reliability** means the callback URL is the real service endpoint — the SDK calls it automatically. **Medium reliability** means the canary fires conditionally, depending on agent behavior.
+Snare ships 18 canary types in three tiers. The tier tells you how reliably it fires and whether it has side effects on your own tooling.
 
-## High reliability (6)
+## Precision (3)
 
-These fire whenever the credential is actively used.
+Fire via SDK or OS hooks that already exist. Near-zero false positives. No side effects. These are the default (`snare arm` plants all three).
 
-| Type | Location | Mechanism |
-|------|----------|-----------|
-| [awsproc](/canaries/awsproc) | `~/.aws/config` | `credential_process` fires at credential resolution — before any API call |
-| [aws](/canaries/aws) | `~/.aws/credentials` | `endpoint_url` redirects SDK calls to Snare |
-| [gcp](/canaries/gcp) | `~/.config/gcloud/sa-prod-backup.json` | `token_uri` redirects OAuth token exchange |
-| [ssh](/canaries/ssh) | `~/.ssh/config` | `ProxyCommand` runs curl callback on connection attempt |
-| [k8s](/canaries/k8s) | `~/.kube/<name>.yaml` | kubeconfig `server` URL redirects all kubectl/SDK traffic |
-| [pypi](/canaries/pypi) | `~/.config/pip/pip.conf` | `extra-index-url` queries Snare on every `pip install` |
+| Type | Location | How it fires |
+|------|----------|-------------|
+| [awsproc](/canaries/awsproc) | `~/.aws/config` | `credential_process` runs inside the AWS SDK before any API call |
+| [ssh](/canaries/ssh) | `~/.ssh/config` | `ProxyCommand` is the transport — fires before TCP connection |
+| [k8s](/canaries/k8s) | `~/.kube/<name>.yaml` | kubeconfig `server` URL fires on any kubectl or SDK call |
 
-## Medium reliability (7)
+## High reliability (5)
 
-These fire when the agent reads the credential file AND honors the base URL override in the same process.
+Fire when the credential is actively used — by anyone. Human attacker, compromised agent, leaked key, automated scanner. Some have side effects on your own tooling; read the notes before enabling.
 
-| Type | Location | Mechanism |
-|------|----------|-----------|
-| [openai](/canaries/openai) | `~/.env` | `OPENAI_BASE_URL` redirects SDK calls |
-| [anthropic](/canaries/anthropic) | `~/.env.local` | `ANTHROPIC_BASE_URL` redirects SDK calls |
-| [npm](/canaries/npm) | `~/.npmrc` | Scoped registry URL fires on `npm install @scope/...` |
-| [mcp](/canaries/mcp) | `~/.config/mcp-servers*.json` | First public MCP security canary — HTTP transport URL fires on client connection |
-| [github](/canaries/github) | `~/.config/gh/hosts.yml` | `api_endpoint` redirects `gh` CLI calls to fake Enterprise host |
-| [stripe](/canaries/stripe) | `~/.config/stripe/config.toml` | Stripe CLI targets fake endpoint |
-| [generic](/canaries/generic) | `~/.env.production` | `API_BASE_URL` redirect for any SDK that honors env var |
+| Type | Location | How it fires | Side effects |
+|------|----------|-------------|-------------|
+| [aws](/canaries/aws) | `~/.aws/credentials` | `endpoint_url` redirects AWS SDK calls | None if profile name is unique |
+| [gcp](/canaries/gcp) | `~/.config/gcloud/sa-*.json` | `token_uri` redirects OAuth token exchange | None — requires explicit file load |
+| [npm](/canaries/npm) | `~/.npmrc` | Scoped registry fires on `npm install @scope/...` | Fires on your own installs of that scope |
+| [git](/canaries/git) | `~/.gitconfig` | `credential.helper` fires on `git credential fill` | None — DNS fail prevents accidental fires on clone/pull |
+| [pypi](/canaries/pypi) | `~/.config/pip/pip.conf` | `extra-index-url` queries snare.sh | **Every `pip install` you run** queries snare.sh. Package names visible in request metadata. High false-positive rate from your own tooling. |
 
-## Precision mode
+## Medium reliability (10)
 
-For environments where you want near-zero false positives, use `--precision` to plant only the three canaries that require active credential use (not just file reads):
+Fire conditionally. The attacker must also honor the SDK base URL override. A human who grabs the key and calls the real API directly won't trigger these.
+
+| Type | Location | How it fires |
+|------|----------|-------------|
+| [openai](/canaries/openai) | `~/.env` | `OPENAI_BASE_URL` redirect — fires if agent loads dotenv and honors it |
+| [anthropic](/canaries/anthropic) | `~/.env.local` | `ANTHROPIC_BASE_URL` redirect |
+| azure | `~/.azure/service-principal-credentials.json` | `tokenEndpoint` — fires if agent explicitly loads this file |
+| [mcp](/canaries/mcp) | `~/.config/mcp-servers*.json` | Fake MCP server — fires when MCP client connects |
+| [github](/canaries/github) | `~/.config/gh/hosts.yml` | `api_endpoint` redirect for fake GitHub Enterprise host |
+| [stripe](/canaries/stripe) | `~/.config/stripe/config.toml` | Fires if agent uses Stripe CLI with the fake profile |
+| huggingface | `~/.env.hf` | `HF_ENDPOINT` redirect |
+| docker | `~/.docker/config.json` | Fake registry — fires on `docker pull` or `docker login` |
+| terraform | `~/.terraformrc` | `network_mirror` for fake provider namespace — fires on `terraform init` |
+| [generic](/canaries/generic) | `~/.env.production` | `API_BASE_URL` redirect |
+
+## Planting canaries
 
 ```bash
-snare arm --precision --webhook <url>
-# Plants: awsproc, ssh, k8s
+# Default: precision only (awsproc, ssh, k8s)
+snare arm --webhook <url>
+
+# Interactive picker — choose any combination
+snare arm --select --webhook <url>
+
+# All 18 types
+snare arm --all --webhook <url>
+
+# Individual type
+snare plant --type gcp --webhook <url>
 ```
 
-[Learn about precision mode →](/precision-mode)
+## Side effects
+
+**PyPI** adds `extra-index-url` to your pip config. Every `pip install` on this machine will query snare.sh as an additional index. Package names appear in request metadata. Run `snare teardown --type pypi` to remove.
+
+**npm** adds a scoped registry entry. Only packages under the fake scope are affected.
+
+**Terraform** creates `~/.terraformrc` with a fake provider namespace. Fails if `~/.terraformrc` already exists (to avoid breaking existing HCL config).

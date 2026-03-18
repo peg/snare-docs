@@ -5,12 +5,13 @@ description: All snare commands and flags.
 
 ## snare arm
 
-One-command setup: initialize + plant all canaries + test webhook.
+One-command setup: initialize + plant canaries + test webhook. Defaults to precision mode (awsproc, ssh, k8s).
 
 ```bash
 snare arm --webhook <url>
 snare arm --webhook <url> --label prod-server
-snare arm --precision --webhook <url>
+snare arm --select --webhook <url>     # interactive picker
+snare arm --all --webhook <url>        # all 18 types
 snare arm --dry-run
 ```
 
@@ -18,8 +19,32 @@ snare arm --dry-run
 |------|-------------|
 | `--webhook <url>` | Webhook URL (Discord, Slack, Telegram, PagerDuty, Teams) |
 | `--label <name>` | Prefix canary names (defaults to hostname) |
-| `--precision` | Plant only awsproc, ssh, k8s — near-zero false positives |
+| `--select` | Interactive TUI to pick which canaries to arm |
+| `--all` | Plant all 18 canary types including dotenv-based ones |
 | `--dry-run` | Show what would be planted without writing anything |
+
+### --select mode
+
+Interactive checklist. Arrow keys or j/k to move, Space to toggle, Enter to confirm.
+
+```
+  Select canaries to arm  Space toggle · Enter confirm · q abort
+
+  PRECISION
+→ ✓ awsproc       ~/.aws/config (credential_process)
+  ✓ ssh            ~/.ssh/config (ProxyCommand)
+  ✓ k8s            ~/.kube/<name>.yaml (server URL)
+
+  HIGH
+  ○ aws            ~/.aws/credentials (endpoint_url)
+  ...
+
+  MEDIUM
+  ○ openai         ~/.env (OPENAI_BASE_URL)
+  ...
+```
+
+Shortcuts: `a` select all, `n` select none, `p` reset to precision defaults.
 
 ## snare disarm
 
@@ -45,8 +70,11 @@ snare status
 Fetch recent alert events from snare.sh.
 
 ```bash
-snare events
+snare events                  # per-event detail view
+snare events --summary        # ASN/UA distribution across all canaries
 ```
+
+`--summary` shows ASN distribution, SDK/user-agent breakdown, likely-AI-agent count, and per-canary hit counts. Useful for triaging a canary fire — confirms whether activity looks like a cloud-hosted agent vs scanner noise.
 
 ## snare test
 
@@ -67,12 +95,7 @@ snare doctor
 snare doctor --test    # also fires a live test alert
 ```
 
-Checks:
-- Config file exists and is readable
-- Callback server (snare.sh) is reachable
-- Webhook is configured
-- Active canary count
-- Canary files present and unmodified
+Checks: config file, callback server reachability, webhook, active canary count, canary file integrity.
 
 ## snare config
 
@@ -100,14 +123,14 @@ Plant individual canary types.
 ```bash
 snare plant --type awsproc
 snare plant --type ssh --label jump-box
-snare plant --all                     # plant all high-reliability types
+snare plant --all
 ```
 
 | Flag | Description |
 |------|-------------|
-| `--type <type>` | Canary type (aws, awsproc, gcp, ssh, k8s, pypi, openai, anthropic, npm, mcp, github, stripe, generic) |
+| `--type <type>` | Canary type: aws, awsproc, gcp, ssh, k8s, pypi, git, terraform, openai, anthropic, npm, mcp, github, stripe, huggingface, docker, azure, generic |
 | `--label <name>` | Prefix canary names |
-| `--all` | Plant all recommended canary types |
+| `--all` | Plant all canary types |
 | `--dry-run` | Preview without writing |
 
 ## snare teardown
@@ -138,7 +161,15 @@ snare serve --tls-domain canary.yourcompany.com --dashboard-token <token>
 | `--tls-domain <domain>` | Enable Let's Encrypt HTTPS |
 | `--webhook-url <url>` | Global fallback webhook URL |
 
-Also: `SNARE_DASHBOARD_TOKEN` env var accepted instead of `--dashboard-token`.
+`SNARE_DASHBOARD_TOKEN` env var is also accepted.
+
+## snare scan
+
+Check canary integrity on disk. Reports missing, modified, or orphaned canaries.
+
+```bash
+snare scan
+```
 
 ## snare uninstall
 
