@@ -9,7 +9,7 @@ One-command setup: initialize + plant canaries + test webhook. Defaults to preci
 
 ```bash
 snare arm --webhook <url>
-snare arm --webhook <url> --label prod-server
+snare arm --webhook <url> --label prod-admin-legacy-2024
 snare arm --select --webhook <url>     # interactive picker
 snare arm --all --webhook <url>        # all 18 types
 snare arm --dry-run
@@ -18,7 +18,7 @@ snare arm --dry-run
 | Flag | Description |
 |------|-------------|
 | `--webhook <url>` | Webhook URL (Discord, Slack, Telegram, PagerDuty, Teams) |
-| `--label <name>` | Prefix canary names (defaults to hostname) |
+| `--label <name>` | Name your canary — becomes the AWS profile name, SSH host, k8s context, etc. Defaults to hostname. Use something that looks like real infrastructure (e.g. `prod-admin-legacy-2024`). |
 | `--select` | Interactive TUI to pick which canaries to arm |
 | `--all` | Plant all 18 canary types including dotenv-based ones |
 | `--dry-run` | Show what would be planted without writing anything |
@@ -45,6 +45,31 @@ Interactive checklist. Arrow keys or j/k to move, Space to toggle, Enter to conf
 ```
 
 Shortcuts: `a` select all, `n` select none, `p` reset to precision defaults.
+
+
+## Naming your canaries
+
+The `--label` flag controls what your canary looks like on disk. It becomes the AWS profile name, SSH hostname, Kubernetes context name, and so on.
+
+**This is the most important thing you can tune.** A compromised agent scanning for credentials will find yours and try to use it. The name determines whether it looks like a live credential worth trying.
+
+Good names look like dormant but plausible infrastructure:
+
+```sh
+snare arm --label prod-admin-legacy-2024       # AWS profile: [profile prod-admin-legacy-2024]
+snare arm --label staging-deploy-us-east-1     # SSH host: Host staging-deploy-us-east-1
+snare arm --label corp-k8s-prod                # k8s context: corp-k8s-prod
+```
+
+Bad names are obvious traps:
+
+```sh
+snare arm --label honeypot      # too obvious
+snare arm --label test          # agents may skip test credentials
+snare arm                       # defaults to hostname — fine but generic
+```
+
+The default (hostname) works, but a name that looks like a specific AWS account, environment, or team will attract more attention from a credential-sweeping agent and generate cleaner signal.
 
 ## snare disarm
 
@@ -122,14 +147,14 @@ Plant individual canary types.
 
 ```bash
 snare plant --type awsproc
-snare plant --type ssh --label jump-box
+snare plant --type ssh --label prod-bastion-us-east-1
 snare plant --all
 ```
 
 | Flag | Description |
 |------|-------------|
 | `--type <type>` | Canary type: aws, awsproc, gcp, ssh, k8s, pypi, git, terraform, openai, anthropic, npm, mcp, github, stripe, huggingface, docker, azure, generic |
-| `--label <name>` | Prefix canary names |
+| `--label <name>` | Name the canary — same naming strategy applies. |
 | `--all` | Plant all canary types |
 | `--dry-run` | Preview without writing |
 
