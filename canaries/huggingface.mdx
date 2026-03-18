@@ -1,0 +1,51 @@
+---
+title: huggingface
+description: HF_ENDPOINT redirect in ~/.env.hf — fires when the HuggingFace Hub SDK loads this file and uses the override.
+---
+
+The `huggingface` canary plants `~/.env.hf` with a fake `HF_TOKEN` and `HF_ENDPOINT` redirected to Snare. Any HuggingFace Hub SDK call that picks up `HF_ENDPOINT` from this file routes to Snare instead of `huggingface.co`.
+
+## What gets planted
+
+```bash ~/.env.hf
+# huggingface credentials
+HF_TOKEN=hf_TKRBfVtqXnMpQrJsLdWzYkCeAbHgUoIv
+HF_ENDPOINT=https://snare.sh/c/agent-01-b9e4d7f2.../
+```
+
+## Reliability: Medium
+
+Fires only when **both** conditions are true:
+1. The agent reads and loads `~/.env.hf` (or exports these variables into its environment)
+2. The agent makes a HuggingFace Hub SDK call in a process where `HF_ENDPOINT` is set
+
+Agents that scan for credential files and source dotenv files will trigger this. Agents relying on environment variables pre-set at startup may not load this specific file.
+
+## Trigger conditions
+
+- Agent runs `load_dotenv("~/.env.hf")` or equivalent
+- Agent calls `huggingface_hub.hf_hub_download()`, `snapshot_download()`, `InferenceClient()`, or any Hub API method
+- Both in the same process where `HF_ENDPOINT` is active
+
+## Side effect
+
+If you use `~/.env.hf` in your own HuggingFace workflows, this canary will fire on your own SDK calls. Use a different env file for real HF credentials, or teardown before running legitimate HF workloads.
+
+## False positives
+
+Only if your own tooling loads `~/.env.hf` and makes HF Hub calls. If you don't use `~/.env.hf` for anything real, false-positive rate is near-zero.
+
+## Plant
+
+```bash
+snare plant --type huggingface --webhook <url>
+snare arm --select --webhook <url>   # pick via interactive mode
+```
+
+## Teardown
+
+```bash
+snare teardown --token <id>
+```
+
+Removes only the `HF_TOKEN` and `HF_ENDPOINT` lines from `~/.env.hf`. If the file was created by Snare and is now empty, it is deleted.

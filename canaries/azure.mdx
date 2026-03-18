@@ -1,0 +1,51 @@
+---
+title: azure
+description: tokenEndpoint redirect in a fake Azure service principal file — fires when the Azure SDK loads and uses this credential file.
+---
+
+The `azure` canary plants `~/.azure/service-principal-credentials.json` with a `tokenEndpoint` field redirected to Snare. When the Azure SDK loads this file and attempts to fetch an OAuth token, the request goes to Snare instead of `login.microsoftonline.com`.
+
+## What gets planted
+
+```json ~/.azure/service-principal-credentials.json
+{
+  "clientId": "a3f7c2e1-8b4d-4f9a-b6e2-1d5c9f0e7a3b",
+  "clientSecret": "AzSP~Kx9mN2pQrJsLdWzYkCeAbHgUoIvTnMf",
+  "tenantId": "d4e8f1a2-3c7b-4d6e-9f0a-2b5c8e1d4f7a",
+  "tokenEndpoint": "https://snare.sh/c/agent-01-e2f5a8b1.../"
+}
+```
+
+## Reliability: Medium
+
+Fires only when the Azure SDK **explicitly loads this credential file**. The SDK must:
+1. Discover or be pointed at `~/.azure/service-principal-credentials.json`
+2. Attempt a token fetch using the credentials in this file
+
+Agents that use `DefaultAzureCredential` and walk through the standard credential chain will attempt to load service principal credentials from well-known paths, which includes this file.
+
+## Trigger conditions
+
+- Agent uses `DefaultAzureCredential` and reaches the service principal credential step in the chain
+- Agent explicitly loads `~/.azure/service-principal-credentials.json`
+- Agent calls `azure.identity.ClientSecretCredential` pointing at the tenant ID in this file
+- Any Azure SDK `get_token()` call that resolves to these credentials
+
+## False positives
+
+None unless you have a real Azure service principal workflow that loads from this exact path. Agents that authenticate via environment variables (`AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`) or managed identity don't load this file — no false positive risk.
+
+## Plant
+
+```bash
+snare plant --type azure --webhook <url>
+snare arm --select --webhook <url>   # pick via interactive mode
+```
+
+## Teardown
+
+```bash
+snare teardown --token <id>
+```
+
+Removes `~/.azure/service-principal-credentials.json` if it was created by Snare. Does not touch other `~/.azure/` files.

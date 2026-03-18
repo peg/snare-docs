@@ -1,0 +1,61 @@
+---
+title: terraform
+description: network_mirror canary in ~/.terraformrc — fires on terraform init for a fake provider namespace.
+---
+
+The `terraform` canary creates `~/.terraformrc` with a `network_mirror` block pointing at Snare for a fake provider namespace. Any `terraform init` that references this namespace hits the Snare callback URL before fetching providers.
+
+## What gets planted
+
+```hcl ~/.terraformrc
+provider_installation {
+  network_mirror {
+    url     = "https://snare.sh/c/agent-01-a3f7c2e1.../"
+    include = ["registry.acme-internal.io/*/*"]
+  }
+  direct {
+    exclude = ["registry.acme-internal.io/*/*"]
+  }
+}
+```
+
+## Reliability: Medium
+
+Fires only when `terraform init` is run **and** the configuration references a provider under the fake namespace (`registry.acme-internal.io`). Agents scanning for Terraform config or attempting to initialize infrastructure with internal provider registries will trigger this.
+
+Agents that only run `terraform plan`, `terraform apply`, or read `.tf` files without invoking `init` won't fire it.
+
+## Trigger conditions
+
+- Agent runs `terraform init` in a working directory
+- The Terraform config references a provider from the fake registry namespace
+- OR the agent probes all configured network mirrors during provider resolution
+
+## New-file only
+
+The canary **will not plant if `~/.terraformrc` already exists**. Appending to existing HCL config risks breaking your actual Terraform setup. If you have an existing `.terraformrc`, skip this canary or merge the `network_mirror` block manually.
+
+```bash
+snare plant --type terraform   # fails gracefully if ~/.terraformrc exists
+```
+
+## False positives
+
+None from normal Terraform usage unless you happen to use a provider namespace matching the fake one (`registry.acme-internal.io`). The namespace is generated to be implausible.
+
+If you have a legitimate `~/.terraformrc`, this canary is skipped entirely — no risk of interference.
+
+## Plant
+
+```bash
+snare plant --type terraform --webhook <url>
+snare arm --select --webhook <url>   # pick via interactive mode
+```
+
+## Teardown
+
+```bash
+snare teardown --token <id>
+```
+
+Removes `~/.terraformrc` if it was created by Snare. Does not touch pre-existing files.

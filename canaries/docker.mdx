@@ -1,0 +1,52 @@
+---
+title: docker
+description: Fake registry entry in ~/.docker/config.json — fires on docker pull or docker login to the fake registry hostname.
+---
+
+The `docker` canary injects a fake registry entry into `~/.docker/config.json` with a `credHelpers` mapping pointing to a non-existent credential helper. When Docker attempts to authenticate against the fake registry hostname — via `docker pull`, `docker login`, or programmatic registry access — it triggers the Snare callback.
+
+## What gets planted
+
+```json ~/.docker/config.json
+{
+  "credHelpers": {
+    "registry.acme-internal.io": "snare-agent-01-c4d8e1f3"
+  }
+}
+```
+
+The fake credential helper binary doesn't exist, so Docker fails after querying the snare.sh callback. The failed credential lookup is the alert signal.
+
+## Reliability: Medium
+
+Fires when an agent attempts to `docker pull` or `docker login` to the specific fake registry hostname. Agents that enumerate `~/.docker/config.json` and attempt to authenticate with listed registries will trigger this.
+
+Agents that only use Docker locally (without pulling from this specific registry) won't fire it.
+
+## Trigger conditions
+
+- Agent runs `docker pull registry.acme-internal.io/<any-image>`
+- Agent runs `docker login registry.acme-internal.io`
+- Programmatic Docker client (Python `docker` SDK, Go Docker client) authenticates against the fake hostname
+- Agent enumerates `credHelpers` and attempts to resolve credentials for each configured registry
+
+## False positives
+
+Near-zero. The fake registry hostname is generated to be implausible. Nothing in your normal Docker workflow would legitimately target `registry.acme-internal.io`.
+
+If you have existing entries in `~/.docker/config.json`, Snare merges the new key into `credHelpers` without overwriting the rest of your config.
+
+## Plant
+
+```bash
+snare plant --type docker --webhook <url>
+snare arm --select --webhook <url>   # pick via interactive mode
+```
+
+## Teardown
+
+```bash
+snare teardown --token <id>
+```
+
+Removes the injected `credHelpers` key from `~/.docker/config.json`. Does not touch other Docker config entries.

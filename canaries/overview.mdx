@@ -35,13 +35,13 @@ Fire conditionally. The attacker must also honor the SDK base URL override. A hu
 |------|----------|-------------|
 | [openai](/canaries/openai) | `~/.env` | `OPENAI_BASE_URL` redirect — fires if agent loads dotenv and honors it |
 | [anthropic](/canaries/anthropic) | `~/.env.local` | `ANTHROPIC_BASE_URL` redirect |
-| azure | `~/.azure/service-principal-credentials.json` | `tokenEndpoint` — fires if agent explicitly loads this file |
+| [azure](/canaries/azure) | `~/.azure/service-principal-credentials.json` | `tokenEndpoint` — fires if agent explicitly loads this file |
 | [mcp](/canaries/mcp) | `~/.config/mcp-servers*.json` | Fake MCP server — fires when MCP client connects |
 | [github](/canaries/github) | `~/.config/gh/hosts.yml` | `api_endpoint` redirect for fake GitHub Enterprise host |
 | [stripe](/canaries/stripe) | `~/.config/stripe/config.toml` | Fires if agent uses Stripe CLI with the fake profile |
-| huggingface | `~/.env.hf` | `HF_ENDPOINT` redirect |
-| docker | `~/.docker/config.json` | Fake registry — fires on `docker pull` or `docker login` |
-| terraform | `~/.terraformrc` | `network_mirror` for fake provider namespace — fires on `terraform init` |
+| [huggingface](/canaries/huggingface) | `~/.env.hf` | `HF_ENDPOINT` redirect |
+| [docker](/canaries/docker) | `~/.docker/config.json` | Fake registry — fires on `docker pull` or `docker login` |
+| [terraform](/canaries/terraform) | `~/.terraformrc` | `network_mirror` for fake provider namespace — fires on `terraform init` |
 | [generic](/canaries/generic) | `~/.env.production` | `API_BASE_URL` redirect |
 
 ## Planting canaries

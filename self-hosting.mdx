@@ -5,6 +5,12 @@ description: Run your own Snare callback server instead of using snare.sh.
 
 Snare works without any external dependency. The Cloudflare Worker source is in the repo (`worker/`) and a full Go callback server is built into the CLI (`snare serve`).
 
+<Warning>
+  **Always run `snare serve` behind a reverse proxy you control** (nginx, Caddy, Cloudflare Tunnel). Never bind directly to a public interface.
+
+  The server trusts `X-Forwarded-For` headers for IP attribution. Without a trusted upstream proxy stripping or overwriting this header, any caller can spoof their source IP in alert metadata. A reverse proxy ensures the header reflects the real client address.
+</Warning>
+
 ## Why self-host?
 
 - **Air-gapped environments** — internal servers, no outbound traffic to snare.sh
