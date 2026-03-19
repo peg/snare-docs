@@ -32,7 +32,7 @@ The canary uses an assume-role pattern that looks like a real staging/production
 ```ini ~/.aws/config
 # Visible profile — looks like a legitimate assume-role config
 [profile prod-admin]
-role_arn       = arn:aws:iam::389844960505:role/OrganizationAccountAccessRole
+role_arn       = arn:aws:iam::123456789012:role/OrganizationAccountAccessRole
 source_profile = prod-admin-source
 region         = us-east-1
 
