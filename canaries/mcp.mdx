@@ -1,10 +1,10 @@
 ---
 title: mcp
-description: First public MCP security canary — HTTP transport URL fires on client connection.
+description: MCP-focused security canary — HTTP transport URL fires on client connection.
 ---
 
 <Note>
-  This is the first publicly documented MCP (Model Context Protocol) security canary. MCP configs are credential-adjacent — they contain auth tokens, connection strings, and endpoint URLs that attackers target for privilege escalation.
+  The `mcp` canary is designed for MCP (Model Context Protocol) config reconnaissance. MCP configs are credential-adjacent — they contain auth tokens, connection strings, and endpoint URLs that attackers target for privilege escalation.
 </Note>
 
 The `mcp` canary plants a fake MCP server configuration in a discoverable but non-auto-loaded location. When an agent or attacker finds and attempts to connect to the fake MCP server, the Streamable HTTP transport URL fires the callback.

@@ -90,6 +90,8 @@ Show active canaries with last-seen timestamps.
 snare status
 ```
 
+A canary that shows `never fired` is usually healthy: it means no one has actively used that bait yet. Use `snare doctor` and `snare prove --run --report` to prove setup health without waiting for a real compromise.
+
 ## snare events
 
 Fetch recent alert events from snare.sh.
@@ -121,6 +123,39 @@ snare doctor --test    # also fires a live test alert
 ```
 
 Checks: config file, callback server reachability, webhook, active canary count, canary file integrity.
+
+## snare prove
+
+Print safe precision-canary proof commands, optionally execute them, and produce a first-success proof report.
+
+```bash
+snare prove                         # show safe trigger commands
+snare prove --type awsproc          # focus on one precision canary
+snare prove --run                   # execute proof commands and confirm callback visibility
+snare prove --run --report          # print report with observed callbacks and next steps
+snare prove --format json           # JSON report; implies --report
+```
+
+| Flag | Description |
+|------|-------------|
+| `--type <type>` | Limit proof to `awsproc`, `ssh`, or `k8s` |
+| `--run` | Execute the safe trigger command and look for a new readable callback event |
+| `--report` | Include commands, observed callback status, proof boundaries, and next steps |
+| `--format text|json` | Report format. `json` is useful for saving CI or support artifacts. |
+
+`snare prove --run --report` is the recommended first-10-minute confidence check after arming. It proves Snare is planted, precision callbacks can fire, and events are readable. It does not prove that a real attacker has touched the canary.
+
+## snare repair
+
+Safely re-sync token registrations and test callback health.
+
+```bash
+snare repair
+snare repair --dry-run
+snare sync --dry-run    # alias
+```
+
+Re-registers active tokens, verifies ownership/readability through the events API, and fires a test callback. It does not modify canary files.
 
 ## snare config
 
