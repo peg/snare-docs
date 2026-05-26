@@ -1,6 +1,6 @@
 ---
 title: Quickstart
-description: Up and running in 60 seconds.
+description: Install, arm, and prove Snare is working in 10 minutes.
 ---
 
 ## Install
@@ -17,13 +17,13 @@ brew install peg/tap/snare
 
 Or download a binary from [releases](https://github.com/peg/snare/releases).
 
-## Arm
+## Arm precision canaries
 
 ```bash
 snare arm --webhook https://discord.com/api/webhooks/YOUR/WEBHOOK
 ```
 
-By default, `snare arm` uses precision mode — plants the three highest-signal canaries (awsproc, ssh, k8s), fires a test alert, and you're done.
+By default, `snare arm` uses precision mode — plants the three highest-signal canaries (`awsproc`, `ssh`, `k8s`), fires a test alert, and prints the next commands.
 
 ```
 ✓ initialized (device: dev-2146102a)
@@ -42,6 +42,40 @@ By default, `snare arm` uses precision mode — plants the three highest-signal 
   Run `snare disarm` to remove everything.
 ```
 
+## Prove the quiet state
+
+A quiet Snare install is healthy. `never fired` means nobody has tried to use the bait yet; it does **not** mean the canary is broken.
+
+Use this first-10-minute confidence loop instead of waiting blindly:
+
+```bash
+snare status              # list active canaries; "never fired" is expected at first
+snare doctor              # validate config, callback reachability, and file integrity
+snare doctor --test       # fire a safe delivery test
+snare prove --run --report  # safely trigger precision canaries and print a proof report
+snare events              # confirm callback evidence is readable
+```
+
+| Command | What it tells you |
+|---------|-------------------|
+| `snare status` | Which canaries are planted and when each last fired. `never fired` is the normal quiet state. |
+| `snare doctor` | Local config exists, callback server is reachable, webhook is configured, and canary files still match what Snare planted. |
+| `snare doctor --test` | Alert delivery works without touching real credentials. |
+| `snare prove --run --report` | Precision canaries can fire, Snare can read the resulting event, and the report explains what was proven. |
+| `snare events` | Recent callback evidence is visible for triage and sharing. |
+
+A proof report should make the boundary clear: it proves this machine is armed and callbacks are observable. It does not prove that a real attacker or compromised agent has touched the canary.
+
+## When something is off
+
+```bash
+snare scan                 # check for missing, modified, or orphaned canaries
+snare repair --dry-run     # preview token re-registration and health checks
+snare repair               # re-sync token registrations and run a safe test
+```
+
+`snare repair` does not modify canary files. It re-registers active tokens, checks event readability, and fires a test callback so you can recover from stale registrations or callback-health drift.
+
 ## Want more coverage?
 
 Use `--select` to pick any combination interactively, or `--all` for all 18 types:
@@ -52,16 +86,6 @@ snare arm --all --webhook <url>      # all 18 types
 ```
 
 Read [canary types](/canaries/overview) before enabling pypi or npm — they have side effects on your own installs.
-
-## Verify
-
-```bash
-snare status     # show active canaries with last-seen timestamps
-snare test       # fire another test alert
-snare doctor     # validate config, connectivity, and canary integrity
-snare events     # fetch alert history
-snare events --summary   # ASN/UA distribution across all canaries
-```
 
 ## Disarm
 
